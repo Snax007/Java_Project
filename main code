@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Locale;
 public class DeliveryRouteOptimizerGUI extends JFrame 
 {
-
     // --- CONSTANTS ---
     private static final int DEPOT = 0;
     private static final double DIESEL_PRICE = 88.34;
@@ -22,7 +21,6 @@ public class DeliveryRouteOptimizerGUI extends JFrame
         "Rajpur Road",
         "FRI"
     };
-
     // --- DATA STRUCTURES ---
     static class Edge {
         int to;
