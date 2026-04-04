@@ -1,13 +1,13 @@
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
-public class DeliveryRouteOptimizerGUI extends JFrame 
-{
-    // --- CONSTANTS ---
+
+public class DeliveryRouteOptimizerGUI extends JFrame {
+
     private static final int DEPOT = 0;
     private static final double DIESEL_PRICE = 88.34;
     private static final double KM_PER_LITER = 10.0;
@@ -19,199 +19,245 @@ public class DeliveryRouteOptimizerGUI extends JFrame
         "Miyawala",
         "Sahastradhara",
         "Rajpur Road",
-        "FRI"
+        "Forest Research Institute (FRI)"
     };
-    // --- DATA STRUCTURES ---
+
     static class Edge {
         int to;
         double weight;
-
-        Edge(int t, double w) {
-            to = t;
-            weight = w;
+        Edge(int to, double weight) {
+            this.to = to;
+            this.weight = weight;
         }
     }
 
     private static final List<List<Edge>> adjList = new ArrayList<>();
 
     static {
-        for (int i = 0; i < PLACES.length; i++) {
-            adjList.add(new ArrayList<>());
-        }
+        for (int i = 0; i < PLACES.length; i++) adjList.add(new ArrayList<>());
 
-        double[][] d = {
-            {0, 4.8, 2.1, 8.5, 14.2, 9.7, 6.3},
-            {4.8, 0, 3.5, 11.2, 16.8, 12.4, 8.9},
-            {2.1, 3.5, 0, 7.9, 13.5, 8.1, 5.2},
-            {8.5, 11.2, 7.9, 0, 9.4, 6.8, 11.7},
-            {14.2, 16.8, 13.5, 9.4, 0, 12.3, 15.6},
-            {9.7, 12.4, 8.1, 6.8, 12.3, 0, 9.1},
-            {6.3, 8.9, 5.2, 11.7, 15.6, 9.1, 0}
+        double[][] tempDist = {
+            {0.0, 4.8, 2.1, 8.5, 14.2, 9.7, 6.3},
+            {4.8, 0.0, 3.5, 11.2, 16.8, 12.4, 8.9},
+            {2.1, 3.5, 0.0, 7.9, 13.5, 8.1, 5.2},
+            {8.5, 11.2, 7.9, 0.0, 9.4, 6.8, 11.7},
+            {14.2, 16.8, 13.5, 9.4, 0.0, 12.3, 15.6},
+            {9.7, 12.4, 8.1, 6.8, 12.3, 0.0, 9.1},
+            {6.3, 8.9, 5.2, 11.7, 15.6, 9.1, 0.0}
         };
 
-        for (int i = 0; i < d.length; i++) {
-            for (int j = 0; j < d.length; j++) {
-                if (i != j) {
-                    adjList.get(i).add(new Edge(j, d[i][j]));
-                }
+        for (int i = 0; i < PLACES.length; i++) {
+            for (int j = 0; j < PLACES.length; j++) {
+                if (i != j) adjList.get(i).add(new Edge(j, tempDist[i][j]));
             }
         }
     }
 
     private JTextArea outputArea;
+    private JCheckBox[] checkBoxes;
 
-    // --- GUI SETUP ---
     public DeliveryRouteOptimizerGUI() {
-        setTitle("Route Optimization (TSP + 2-Opt)");
-        setSize(1100, 750);
-        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setTitle("RouteOpti - ACO based TSP");
+        setSize(1250, 850);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
-        setLayout(new BorderLayout());
+        setLayout(new BorderLayout(10, 10));
 
-        JLabel header = new JLabel("Route Optimization System", SwingConstants.CENTER);
-        header.setFont(new Font("Segoe UI", Font.BOLD, 26));
-        header.setOpaque(true);
-        header.setBackground(new Color(30, 60, 150));
+        JLabel header = new JLabel("🚚 RouteOpti - ACO based Travelling Salesman Problem", SwingConstants.CENTER);
+        header.setFont(new Font("Segoe UI", Font.BOLD, 30));
+        header.setBackground(new Color(25, 55, 150));
         header.setForeground(Color.WHITE);
-        header.setPreferredSize(new Dimension(0, 70));
+        header.setOpaque(true);
+        header.setPreferredSize(new Dimension(0, 90));
         add(header, BorderLayout.NORTH);
 
-        // Increased grid columns to 4 to fit the new Graph button
-        JPanel panel = new JPanel(new GridLayout(1, 4, 15, 15));
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        JPanel buttonPanel = new JPanel(new GridLayout(1, 4, 15, 15));
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(25, 25, 25, 25));
 
-        JButton adjBtn = new JButton("Adjacency List");
-        JButton tspBtn = new JButton("Solve TSP");
-        JButton dijBtn = new JButton("Dijkstra");
-        JButton graphBtn = new JButton("Visual Graph"); // NEW BUTTON
+        JButton btnAdj = createStyledButton("📊 Adjacency List", new Color(52, 152, 219));
+        JButton btnTSP = createStyledButton("🚚 Solve with ACO", new Color(46, 204, 113));
+        JButton btnDijk = createStyledButton("📍 Dijkstra Test", new Color(155, 89, 182));
+        JButton btnGraph = createStyledButton("🌐 View Graph", new Color(231, 76, 60));
+        JButton btnCompare = createStyledButton("📈 Compare ACO vs PSO", new Color(41, 128, 185));
 
-        tspBtn.addActionListener(e -> solveTSP());
-        adjBtn.addActionListener(e -> showAdj());
-        dijBtn.addActionListener(e -> showDijkstra());
-        graphBtn.addActionListener(e -> showGraphWindow()); // NEW ACTION
+        btnAdj.addActionListener(e -> showAdjacencyList());
+        btnTSP.addActionListener(e -> solveWithACO());
+        btnDijk.addActionListener(e -> showDijkstraPanel());
+        btnGraph.addActionListener(e -> showGraphWindow());
+        btnCompare.addActionListener(e -> compareAlgorithms());
 
-        panel.add(adjBtn);
-        panel.add(tspBtn);
-        panel.add(dijBtn);
-        panel.add(graphBtn); // ADD TO PANEL
+        buttonPanel.add(btnAdj);
+        buttonPanel.add(btnTSP);
+        buttonPanel.add(btnDijk);
+        buttonPanel.add(btnGraph);
+        buttonPanel.add(btnCompare);
 
-        add(panel, BorderLayout.SOUTH);
+        add(buttonPanel, BorderLayout.SOUTH);
 
         outputArea = new JTextArea();
-        outputArea.setFont(new Font("Consolas", Font.PLAIN, 14));
+        outputArea.setFont(new Font("Consolas", Font.PLAIN, 15));
         outputArea.setEditable(false);
+        outputArea.setMargin(new Insets(20, 20, 20, 20));
         add(new JScrollPane(outputArea), BorderLayout.CENTER);
+
+        outputArea.setText("✅ ACO is the main TSP solver.\nDijkstra is used only to build distance matrix.\nClick '🌐 View Graph' to see visual representation.\n");
     }
 
-    // --- NEW: GRAPH VISUALIZATION WINDOW ---
+    private JButton createStyledButton(String text, Color color) {
+        JButton btn = new JButton(text);
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        btn.setBackground(color);
+        btn.setForeground(Color.WHITE);
+        btn.setFocusPainted(false);
+        btn.setBorder(BorderFactory.createEmptyBorder(18, 15, 18, 15));
+        return btn;
+    }
+
+    // ====================== VISUAL GRAPH WINDOW ======================
     private void showGraphWindow() {
-        JFrame graphFrame = new JFrame("Network Map");
-        graphFrame.setSize(800, 800);
-        graphFrame.setLocationRelativeTo(this); // Center it relative to the main window
-        graphFrame.add(new GraphPanel()); // Add our custom drawing panel
+        JFrame graphFrame = new JFrame("Network Graph Visualization");
+        graphFrame.setSize(900, 900);
+        graphFrame.setLocationRelativeTo(this);
+        graphFrame.add(new GraphPanel());
         graphFrame.setVisible(true);
     }
 
-    // --- NEW: CUSTOM DRAWING PANEL ---
-    // This inner class handles all the 2D math and rendering for the visual nodes
+    // Inner class for drawing the graph
     class GraphPanel extends JPanel {
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
             Graphics2D g2 = (Graphics2D) g;
-            
-            // Turn on anti-aliasing for smooth lines and text
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
             int width = getWidth();
             int height = getHeight();
-            int padding = 100; // Keep nodes away from the edge of the window
-            int radius = Math.min(width, height) / 2 - padding;
             int centerX = width / 2;
             int centerY = height / 2;
+            int radius = Math.min(width, height) / 2 - 100;
 
             int n = PLACES.length;
-            int[] xCoords = new int[n];
-            int[] yCoords = new int[n];
+            int[] x = new int[n];
+            int[] y = new int[n];
 
-            // 1. Calculate Coordinates (arrange nodes in a circle using trigonometry)
+            // Calculate node positions in a circle
             for (int i = 0; i < n; i++) {
-                // Angle in radians. Starts at top (Math.PI / 2) and goes around
-                double angle = 2 * Math.PI * i / n - (Math.PI / 2);
-                xCoords[i] = centerX + (int) (radius * Math.cos(angle));
-                yCoords[i] = centerY + (int) (radius * Math.sin(angle));
+                double angle = 2 * Math.PI * i / n - Math.PI / 2;
+                x[i] = centerX + (int) (radius * Math.cos(angle));
+                y[i] = centerY + (int) (radius * Math.sin(angle));
             }
 
-            // 2. Draw Edges (Lines and Distances)
-            g2.setColor(new Color(200, 200, 200)); // Light grey for lines
-            g2.setFont(new Font("Arial", Font.PLAIN, 12));
-            
+            // Draw Edges with distances
+            g2.setColor(new Color(180, 180, 180));
+            g2.setStroke(new BasicStroke(3));
             for (int i = 0; i < n; i++) {
-                for (Edge edge : adjList.get(i)) {
-                    // Only draw if i < edge.to so we don't draw the same line twice
-                    if (i < edge.to) {
-                        // Draw the connecting line
-                        g2.drawLine(xCoords[i], yCoords[i], xCoords[edge.to], yCoords[edge.to]);
-                        
-                        // Calculate the midpoint of the line to place the text
-                        int midX = (xCoords[i] + xCoords[edge.to]) / 2;
-                        int midY = (yCoords[i] + yCoords[edge.to]) / 2;
-                        
-                        // Draw the distance text with a slightly darker color so it pops out
-                        g2.setColor(Color.DARK_GRAY);
-                        g2.drawString(edge.weight + "km", midX, midY);
-                        g2.setColor(new Color(200, 200, 200)); // Reset to grey for next line
+                for (Edge e : adjList.get(i)) {
+                    if (i < e.to) {  // draw each edge only once
+                        g2.drawLine(x[i], y[i], x[e.to], y[e.to]);
+
+                        // Draw distance label
+                        int midX = (x[i] + x[e.to]) / 2;
+                        int midY = (y[i] + y[e.to]) / 2;
+                        g2.setColor(Color.BLACK);
+                        g2.setFont(new Font("Arial", Font.BOLD, 12));
+                        g2.drawString(e.weight + " km", midX - 15, midY - 5);
+                        g2.setColor(new Color(180, 180, 180));
                     }
                 }
             }
 
-            // 3. Draw Nodes (Circles and Labels)
-            int nodeRadius = 15;
+            // Draw Nodes
             for (int i = 0; i < n; i++) {
-                // Make the Depot node Red, others Blue
                 if (i == DEPOT) {
-                    g2.setColor(new Color(220, 50, 50)); 
+                    g2.setColor(new Color(220, 50, 50)); // Red for Depot
                 } else {
-                    g2.setColor(new Color(50, 100, 200));
+                    g2.setColor(new Color(50, 130, 220)); // Blue for others
                 }
-                
-                // Draw the circular node
-                g2.fillOval(xCoords[i] - nodeRadius, yCoords[i] - nodeRadius, nodeRadius * 2, nodeRadius * 2);
+                g2.fillOval(x[i] - 22, y[i] - 22, 44, 44);
 
-                // Draw the location name text slightly offset from the circle
-                g2.setColor(Color.BLACK);
-                g2.setFont(new Font("Arial", Font.BOLD, 14));
-                g2.drawString(PLACES[i], xCoords[i] + nodeRadius + 5, yCoords[i] + 5);
+                g2.setColor(Color.WHITE);
+                g2.setFont(new Font("Arial", Font.BOLD, 12));
+                String name = PLACES[i];
+                if (name.length() > 12) name = name.substring(0, 12) + "..";
+                int strWidth = g2.getFontMetrics().stringWidth(name);
+                g2.drawString(name, x[i] - strWidth / 2, y[i] + 6);
             }
         }
     }
 
-    // --- EXISTING ALGORITHMS & LOGIC (UNCHANGED) ---
-    private void solveTSP() {
-        JPanel panel = new JPanel(new GridLayout(PLACES.length - 1, 1));
-        JCheckBox[] cb = new JCheckBox[PLACES.length - 1];
+    // ====================== SOLVE WITH ACO ======================
+    private void solveWithACO() {
+        JPanel panel = new JPanel(new GridLayout(PLACES.length - 1, 1, 5, 5));
+        checkBoxes = new JCheckBox[PLACES.length - 1];
 
         for (int i = 1; i < PLACES.length; i++) {
-            cb[i - 1] = new JCheckBox(PLACES[i], true);
-            panel.add(cb[i - 1]);
+            checkBoxes[i-1] = new JCheckBox(PLACES[i]);
+            checkBoxes[i-1].setSelected(true);
+            panel.add(checkBoxes[i-1]);
         }
 
-        if (JOptionPane.showConfirmDialog(this, panel, "Select Locations", JOptionPane.OK_CANCEL_OPTION) != 0) {
+        int result = JOptionPane.showConfirmDialog(this, panel, "Select Delivery Locations", JOptionPane.OK_CANCEL_OPTION);
+        if (result != JOptionPane.OK_OPTION) return;
+
+        List<Integer> selected = new ArrayList<>();
+        for (int i = 0; i < checkBoxes.length; i++) {
+            if (checkBoxes[i].isSelected()) selected.add(i + 1);
+        }
+
+        if (selected.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Please select at least one location!");
             return;
         }
 
-        List<Integer> selected = new ArrayList<>();
-        for (int i = 0; i < cb.length; i++) {
-            if (cb[i].isSelected()) {
-                selected.add(i + 1);
-            }
-        }
-        
-        if (selected.isEmpty()) return;
-        double[][] dist = new double[PLACES.length][PLACES.length];
+        double[][] distMatrix = new double[PLACES.length][PLACES.length];
         for (int i = 0; i < PLACES.length; i++) {
             for (int j = 0; j < PLACES.length; j++) {
-                dist[i][j] = (i == j) ? 0 : dijkstra(i, j);
+                distMatrix[i][j] = (i == j) ? 0 : dijkstraDistance(i, j);
+            }
+        }
+
+        List<Integer> acoRoute = runACO(selected, distMatrix);
+        double acoDist = calculateTotalDistance(acoRoute, distMatrix);
+
+        StringBuilder routeStr = new StringBuilder("=== ACO OPTIMIZED ROUTE ===\n\n");
+        for (int loc : acoRoute) {
+            routeStr.append(PLACES[loc]).append(" → ");
+        }
+        routeStr.setLength(routeStr.length() - 3);
+
+        outputArea.setText(routeStr.toString() + "\n\nTotal Distance : " + String.format("%.1f", acoDist) + " km\n" +
+                "Fuel Used      : " + String.format("%.2f", acoDist / KM_PER_LITER) + " L\n" +
+                "Estimated Cost : ₹ " + Math.round((acoDist / KM_PER_LITER) * DIESEL_PRICE));
+    }
+
+    // ====================== COMPARE ACO vs PSO ======================
+    private void compareAlgorithms() {
+        JPanel panel = new JPanel(new GridLayout(PLACES.length - 1, 1, 5, 5));
+        checkBoxes = new JCheckBox[PLACES.length - 1];
+
+        for (int i = 1; i < PLACES.length; i++) {
+            checkBoxes[i-1] = new JCheckBox(PLACES[i]);
+            checkBoxes[i-1].setSelected(true);
+            panel.add(checkBoxes[i-1]);
+        }
+
+        int result = JOptionPane.showConfirmDialog(this, panel, "Select Delivery Locations", JOptionPane.OK_CANCEL_OPTION);
+        if (result != JOptionPane.OK_OPTION) return;
+
+        List<Integer> selected = new ArrayList<>();
+        for (int i = 0; i < checkBoxes.length; i++) {
+            if (checkBoxes[i].isSelected()) selected.add(i + 1);
+        }
+
+        if (selected.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Please select at least one location!");
+            return;
+        }
+
+        double[][] distMatrix = new double[PLACES.length][PLACES.length];
+        for (int i = 0; i < PLACES.length; i++) {
+            for (int j = 0; j < PLACES.length; j++) {
+                distMatrix[i][j] = (i == j) ? 0 : dijkstraDistance(i, j);
             }
         }
 
@@ -219,169 +265,235 @@ public class DeliveryRouteOptimizerGUI extends JFrame
         naiveRoute.add(DEPOT);
         naiveRoute.addAll(selected);
         naiveRoute.add(DEPOT);
-        double naiveDist = total(naiveRoute, dist);
+        double naiveDist = calculateTotalDistance(naiveRoute, distMatrix);
 
-        StringBuilder steps = new StringBuilder();
-        List<Integer> heuristicRoute = nearestNeighbor(selected, dist, steps);
-        heuristicRoute = twoOpt(heuristicRoute, dist);
-        double heuristicDist = total(heuristicRoute, dist);
+        StringBuilder resultText = new StringBuilder("📊 ACO vs PSO COMPARISON\n\n");
+        resultText.append(String.format("%-35s | %-12s | %-10s | %-15s | %-15s\n", 
+            "Algorithm", "Distance (km)", "Time (ms)", "Saved Km", "Cost Saved (₹)"));
+        resultText.append("--------------------------------------------------------------------------------------------\n");
 
-        List<Integer> bestRoute = new ArrayList<>(naiveRoute);
-        double optDist = naiveDist;
-        boolean improved = false;
+        long start, end;
 
-        if (heuristicDist < naiveDist) {
-            bestRoute = new ArrayList<>(heuristicRoute);
-            optDist = heuristicDist;
-            improved = true;
-        }
+        // ACO
+        start = System.nanoTime();
+        List<Integer> acoRoute = runACO(selected, distMatrix);
+        end = System.nanoTime();
+        double acoDist = calculateTotalDistance(acoRoute, distMatrix);
+        double acoTime = (end - start) / 1_000_000.0;
+        double acoSaved = naiveDist - acoDist;
+        double acoCostSaved = (acoSaved / KM_PER_LITER) * DIESEL_PRICE;
 
-        double saved = Math.max(0, naiveDist - optDist);
-        double fuel = saved / KM_PER_LITER;
-        double cost = fuel * DIESEL_PRICE;
+        resultText.append(String.format("%-35s | %-12.1f | %-10.2f | %-15.1f | %-15.0f\n", 
+            "Ant Colony Optimization (ACO)", acoDist, acoTime, Math.max(0, acoSaved), Math.max(0, acoCostSaved)));
 
-        outputArea.setText(
-            "Naive Route: " + formatRoute(naiveRoute) + "\n" +
-            "Naive Distance: " + formatKm(naiveDist) + " km\n\n" +
-            "Optimized Route: " + formatRoute(bestRoute) + "\n" +
-            "Optimized Distance: " + formatKm(optDist) + " km\n\n" +
-            steps +
-            "\nSaved: " + formatKm(saved) + " km\n" +
-            "Fuel: " + formatKm(fuel) + " L\n" +
-            "Cost: Rs. " + Math.round(cost) +
-            (improved ? "\nStatus: Improved" : "\nStatus: Baseline route kept because heuristic was not better")
-        );
+        // PSO
+        start = System.nanoTime();
+        List<Integer> psoRoute = runPSO(selected, distMatrix);
+        end = System.nanoTime();
+        double psoDist = calculateTotalDistance(psoRoute, distMatrix);
+        double psoTime = (end - start) / 1_000_000.0;
+        double psoSaved = naiveDist - psoDist;
+        double psoCostSaved = (psoSaved / KM_PER_LITER) * DIESEL_PRICE;
+
+        resultText.append(String.format("%-35s | %-12.1f | %-10.2f | %-15.1f | %-15.0f\n", 
+            "Particle Swarm Optimization (PSO)", psoDist, psoTime, Math.max(0, psoSaved), Math.max(0, psoCostSaved)));
+
+        outputArea.setText(resultText.toString());
     }
 
-    private List<Integer> nearestNeighbor(List<Integer> deliveries, double[][] dist, StringBuilder steps) {
-        boolean[] vis = new boolean[PLACES.length];
-        List<Integer> route = new ArrayList<>();
+    // Rest of the methods (runACO, runPSO, constructAntRoute, calculateTotalDistance, dijkstraDistance, etc.) remain the same as your last version
 
-        int curr = DEPOT;
-        route.add(curr);
-        vis[curr] = true;
+    private List<Integer> runACO(List<Integer> deliveries, double[][] distMatrix) {
+        int ants = 25;
+        int iterations = 120;
+        double[][] pheromone = new double[PLACES.length][PLACES.length];
+        for (double[] row : pheromone) Arrays.fill(row, 1.0);
 
-        steps.append("Heuristic steps:\n");
+        List<Integer> bestRoute = null;
+        double bestDist = Double.MAX_VALUE;
 
-        while (route.size() < deliveries.size() + 1) {
-            double min = Double.MAX_VALUE;
-            int next = -1;
+        for (int iter = 0; iter < iterations; iter++) {
+            for (int ant = 0; ant < ants; ant++) {
+                List<Integer> route = constructAntRoute(deliveries, distMatrix, pheromone);
+                double dist = calculateTotalDistance(route, distMatrix);
 
-            for (int d : deliveries) {
-                if (!vis[d] && dist[curr][d] < min) {
-                    min = dist[curr][d];
-                    next = d;
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    bestRoute = new ArrayList<>(route);
+                }
+
+                for (int k = 0; k < route.size() - 1; k++) {
+                    int u = route.get(k);
+                    int v = route.get(k + 1);
+                    pheromone[u][v] += 20.0 / dist;
                 }
             }
 
-            if (next == -1) break;
-
-            steps.append("-> ").append(PLACES[next]).append(" (").append(formatKm(min)).append(" km)\n");
-            route.add(next);
-            vis[next] = true;
-            curr = next;
+            for (int i = 0; i < PLACES.length; i++) {
+                for (int j = 0; j < PLACES.length; j++) {
+                    pheromone[i][j] *= 0.65;
+                }
+            }
         }
-
-        route.add(DEPOT);
-        steps.append("-> Back to Depot\n");
-
-        return route;
+        return bestRoute != null ? bestRoute : nearestNeighborTSP(deliveries, distMatrix);
     }
 
-    private List<Integer> twoOpt(List<Integer> route, double[][] dist) {
-        boolean improved = true;
-        while (improved) {
-            improved = false;
-            for (int i = 1; i < route.size() - 2; i++) {
-                for (int j = i + 1; j < route.size() - 1; j++) {
-                    double curr = dist[route.get(i - 1)][route.get(i)] + dist[route.get(j)][route.get(j + 1)];
-                    double newDist = dist[route.get(i - 1)][route.get(j)] + dist[route.get(i)][route.get(j + 1)];
+    private List<Integer> constructAntRoute(List<Integer> deliveries, double[][] distMatrix, double[][] pheromone) {
+        boolean[] visited = new boolean[PLACES.length];
+        List<Integer> route = new ArrayList<>();
+        route.add(DEPOT);
+        visited[DEPOT] = true;
+        int current = DEPOT;
 
-                    if (newDist < curr) {
-                        Collections.reverse(route.subList(i, j + 1));
-                        improved = true;
+        while (route.size() < deliveries.size() + 1) {
+            int next = -1;
+            double maxProb = -1.0;
+
+            for (int dest : deliveries) {
+                if (!visited[dest]) {
+                    double prob = pheromone[current][dest] / (distMatrix[current][dest] + 0.001);
+                    if (prob > maxProb) {
+                        maxProb = prob;
+                        next = dest;
                     }
                 }
             }
+            if (next == -1) break;
+            route.add(next);
+            visited[next] = true;
+            current = next;
         }
+        route.add(DEPOT);
         return route;
     }
 
-    private double dijkstra(int s, int t) {
+    private List<Integer> runPSO(List<Integer> deliveries, double[][] distMatrix) {
+        int swarmSize = 30;
+        int iterations = 80;
+        List<List<Integer>> particles = new ArrayList<>();
+        List<Integer> globalBest = null;
+        double globalBestDist = Double.MAX_VALUE;
+
+        for (int i = 0; i < swarmSize; i++) {
+            List<Integer> particle = new ArrayList<>();
+            particle.add(DEPOT);
+            List<Integer> temp = new ArrayList<>(deliveries);
+            Collections.shuffle(temp);
+            particle.addAll(temp);
+            particle.add(DEPOT);
+            particles.add(particle);
+
+            double dist = calculateTotalDistance(particle, distMatrix);
+            if (dist < globalBestDist) {
+                globalBestDist = dist;
+                globalBest = new ArrayList<>(particle);
+            }
+        }
+
+        for (int iter = 0; iter < iterations; iter++) {
+            for (List<Integer> particle : particles) {
+                if (Math.random() < 0.65) {
+                    int idx1 = 1 + (int)(Math.random() * (particle.size() - 2));
+                    int idx2 = 1 + (int)(Math.random() * (particle.size() - 2));
+                    if (idx1 != idx2) Collections.swap(particle, idx1, idx2);
+                }
+
+                double currentDist = calculateTotalDistance(particle, distMatrix);
+                if (currentDist < globalBestDist) {
+                    globalBestDist = currentDist;
+                    globalBest = new ArrayList<>(particle);
+                }
+            }
+        }
+        return globalBest;
+    }
+    private List<Integer> nearestNeighborTSP(List<Integer> deliveries, double[][] distMatrix) {
+        boolean[] visited = new boolean[PLACES.length];
+        List<Integer> route = new ArrayList<>();
+        route.add(DEPOT);
+        visited[DEPOT] = true;
+        int current = DEPOT;
+        while (route.size() < deliveries.size() + 1) {
+            double minDist = Double.MAX_VALUE;
+            int next = -1;
+            for (int dest : deliveries) {
+                if (!visited[dest] && distMatrix[current][dest] < minDist) {
+                    minDist = distMatrix[current][dest];
+                    next = dest;
+                }
+            }
+            if (next == -1) break;
+            route.add(next);
+            visited[next] = true;
+            current = next;
+        }
+        route.add(DEPOT);
+        return route;
+    }
+    private double calculateTotalDistance(List<Integer> route, double[][] distMatrix) {
+        double total = 0.0;
+        for (int i = 0; i < route.size() - 1; i++) {
+            total += distMatrix[route.get(i)][route.get(i + 1)];
+        }
+        return total;
+    }
+    private double dijkstraDistance(int start, int target) {
         int n = PLACES.length;
         double[] dist = new double[n];
-        boolean[] vis = new boolean[n];
-
+        boolean[] done = new boolean[n];
         Arrays.fill(dist, Double.MAX_VALUE);
-        dist[s] = 0;
+        dist[start] = 0;
 
-        for (int i = 0; i < n; i++) {
+        for (int count = 0; count < n - 1; count++) {
             int u = -1;
-            double min = Double.MAX_VALUE;
-
-            for (int j = 0; j < n; j++) {
-                if (!vis[j] && dist[j] < min) {
-                    min = dist[j];
-                    u = j;
+            double minVal = Double.MAX_VALUE;
+            for (int v = 0; v < n; v++) {
+                if (!done[v] && dist[v] < minVal) {
+                    minVal = dist[v];
+                    u = v;
                 }
             }
-
             if (u == -1) break;
-            vis[u] = true;
+            done[u] = true;
 
             for (Edge e : adjList.get(u)) {
-                if (dist[u] + e.weight < dist[e.to]) {
-                    dist[e.to] = dist[u] + e.weight;
+                int v = e.to;
+                if (!done[v] && dist[u] + e.weight < dist[v]) {
+                    dist[v] = dist[u] + e.weight;
                 }
             }
         }
-        return dist[t];
+        return dist[target];
     }
-
-    private double total(List<Integer> route, double[][] dist) {
-        double sum = 0;
-        for (int i = 0; i < route.size() - 1; i++) {
-            sum += dist[route.get(i)][route.get(i + 1)];
-        }
-        return sum;
-    }
-
-    private void showAdj() {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < adjList.size(); i++) {
-            sb.append(PLACES[i]).append(" -> ");
-            for (Edge e : adjList.get(i)) {
-                sb.append(PLACES[e.to]).append("(").append(e.weight).append(") ");
+    private void showAdjacencyList() 
+    {
+        StringBuilder sb = new StringBuilder("========================== ADJACENCY LIST ==========================\n\n");
+        for (int i = 0; i < adjList.size(); i++) 
+        {
+            sb.append(String.format("%-25s → ", PLACES[i]));
+            for (Edge e : adjList.get(i)) 
+            {
+                sb.append(PLACES[e.to]).append(" (").append(e.weight).append(" km)  ");
             }
             sb.append("\n");
         }
         outputArea.setText(sb.toString());
     }
-
-    private void showDijkstra() {
-        String[] opt = Arrays.copyOfRange(PLACES, 1, PLACES.length);
-        String sel = (String) JOptionPane.showInputDialog(
-            this, "Destination", "Dijkstra",
-            JOptionPane.QUESTION_MESSAGE, null, opt, opt[0]
-        );
-
-        if (sel == null) return;
-
-        int t = Arrays.asList(PLACES).indexOf(sel);
-        outputArea.setText("Shortest distance: " + formatKm(dijkstra(DEPOT, t)) + " km");
-    }
-
-    private String formatRoute(List<Integer> route) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < route.size(); i++) {
-            if (i > 0) sb.append(" -> ");
-            sb.append(PLACES[route.get(i)]);
+    private void showDijkstraPanel() {
+        String[] dests = new String[PLACES.length - 1];
+        for (int i = 1; i < PLACES.length; i++) dests[i-1] = PLACES[i];
+        String selected = (String) JOptionPane.showInputDialog(this,
+                "Choose Destination:", "Dijkstra Shortest Path",
+                JOptionPane.QUESTION_MESSAGE, null, dests, dests[0]);
+        if (selected == null) return;
+        int target = 0;
+        for (int i = 1; i < PLACES.length; i++) {
+            if (PLACES[i].equals(selected)) target = i;
         }
-        return sb.toString();
-    }
 
-    private String formatKm(double value) {
-        return String.format(Locale.US, "%.1f", value);
+        double distance = dijkstraDistance(DEPOT, target);
+        outputArea.setText("Dijkstra from " + PLACES[DEPOT] + " to " + PLACES[target] + 
+                          "\nShortest Distance: " + String.format("%.1f", distance) + " km");
     }
 
     public static void main(String[] args) {
